@@ -77,6 +77,7 @@ Class which stores a Macro syntax.
 
 
 _default_macro_list = (
+    # macname, optarg, numargs
     MacrosDef('documentclass', True, 1),
     MacrosDef('usepackage', True, 1),
     MacrosDef('selectlanguage', True, 1),
@@ -100,6 +101,13 @@ _default_macro_list = (
     MacrosDef('include', False, 1),
 
     MacrosDef('includegraphics', True, 1),
+
+    MacrosDef('chapter', True, 1),  # Added by scholer
+    MacrosDef('section', True, 1),  # Added by scholer
+    MacrosDef('subsection', True, 1),  # Added by scholer
+    MacrosDef('caption', True, 1),  # Added by scholer
+    MacrosDef('epigraph', True, 1),  # Added by scholer
+    MacrosDef('cite', True, 1),  # Added by scholer
 
     MacrosDef('textit', False, 1),
     MacrosDef('textbf', False, 1),
@@ -301,7 +309,7 @@ class LatexToken(object):
             )
 
     def __str__(self):
-        return self.__unicode__().encode('utf-8')
+        return self.__unicode__()
 
     def __eq__(self, other):
         return all((getattr(self, f) == getattr(other, f) for f in self._fields))
@@ -349,7 +357,7 @@ class LatexNode(object):
         return self.__repr__()
 
     def __str__(self):
-        return self.__unicode__().encode('utf-8')
+        return self.__unicode__()
 
     def __repr__(self):
         return (
@@ -422,6 +430,7 @@ class LatexMacroNode(LatexNode):
             - `nodeargs`: a list of arguments to the macro. Each item in the list
               should be a LatexNode.
         """
+        # TODO: While normal LaTeX only allows ONE optional argument, ConText for example allows multiple.
         super(LatexMacroNode, self).__init__(**kwargs)
         self._fields = ('macroname', 'nodeoptarg', 'nodeargs',)
         self.macroname = macroname
@@ -525,10 +534,7 @@ class LatexWalker(object):
 
     def __init__(self, s, macro_dict=None, **flags):
         self.s = s
-        if macro_dict is not None:
-            self.macro_dict = macro_dict
-        else:
-            self.macro_dict = default_macro_dict
+        self.macro_dict = macro_dict if macro_dict is not None else default_macro_dict
         #
         # now parsing flags:
         #

@@ -45,6 +45,12 @@ class EnvDef:
         self.discard = discard
 
 
+# It is kind of confusing to have to similar-but-different classes,
+# `MacroDef` and `MacrosDef`, in latex2text and latexwalker.
+# latex2text.MacroDef defines how a macro is represented as (converted to) text.
+# latexwalker.MacrosDef namedtuple defines how to parse a macro node.
+# Also, both modules has a `default_macro_dict` member, but with different types of elements.
+
 class MacroDef:
     def __init__(self, macname, simplify_repl=None, discard=None):
         """
@@ -142,7 +148,8 @@ _default_macro_list = [
     ("$", "$"),
     ("{", "{"),
     ("}", "}"),
-    ("%", lambda arg: u"%"),  # careful: % is formatting substituion symbol...
+    # ("%", lambda arg: u"%"),  # careful: % is formatting substituion symbol...
+    ("%", "percent"),  # careful: % is formatting substituion symbol...
     ("#", "#"),
     ("_", "_"),
 
@@ -517,13 +524,13 @@ class LatexNodes2Text(object):
         """
         return self.nodelist_to_text(latexwalker.LatexWalker(latex, **parse_flags).get_latex_nodes()[0])
 
-    def nodelist_to_text(self, nodelist):
+    def nodelist_to_text(self, nodelist, sep=""):
         """
         Extracts text from a node list. `nodelist` is a list of nodes as returned by
         `latexwalker.get_latex_nodes()`.
         """
 
-        s = "".join((self.node_to_text(n) for n in nodelist))
+        s = sep.join((self.node_to_text(n) for n in nodelist))
 
         # now, perform suitable replacements
         for pattern, replacement in self.text_replacements:
@@ -566,11 +573,19 @@ class LatexNodes2Text(object):
                 if callable(mac.simplify_repl):
                     return mac.simplify_repl(node)
                 if '%' in mac.simplify_repl:
+                    # if macroname == "chapter":
+                    #     print("macro:", mac)
+                    #     print("Node:", node)
+                    #     print("Node opt arg:", node.nodeoptarg)
+                    #     print("Node args:", node.nodeargs)
+                    #     print()
+                    interp_args = tuple([self.node_to_text(nn) for nn in node.nodeargs])
                     try:
-                        return mac.simplify_repl % tuple([self.node_to_text(nn) for nn in node.nodeargs])
-                    except (TypeError, ValueError):
-                        logger.warning("WARNING: Error in configuration: macro '%s' failed its substitution!",
-                                       macroname)
+                        return mac.simplify_repl % interp_args
+                    except (TypeError, ValueError) as exc:
+                        logger.warning("WARNING (%s: %s): macro '%s' failed its substitution: %s, %s, %s",
+                                       exc.__class__.__name__, exc,
+                                       macroname, mac.simplify_repl, node.nodeargs, interp_args)
                         return mac.simplify_repl  # too bad, keep the percent signs as they are...
                 return mac.simplify_repl
             if mac.discard:
